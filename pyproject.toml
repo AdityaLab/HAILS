@@ -1,0 +1,41 @@
+[project]
+name = "hails"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "kage08", email = "harshavardhan864.hk@gmail.com" }
+]
+dependencies = [
+    "torch>=2.2.1",
+    "tqdm>=4.66.2",
+    "seaborn>=0.13.2",
+    "jupyter>=1.0.0",
+    "scikit-learn>=1.4.1.post1",
+    "properscoring>=0.1",
+    "pandas>=2.2.0",
+    "numpy>=1.26.4",
+    "matplotlib>=3.8.3",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[project.scripts]
+hello = "hails:hello"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "black>=24.2.0",
+    "ruff>=0.2.2",
+    "ipython>=8.22.1",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hails"]
