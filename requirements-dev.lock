@@ -192,6 +192,7 @@ numpy==1.26.4
     # via matplotlib
     # via pandas
     # via properscoring
+    # via pyarrow
     # via scikit-learn
     # via scipy
     # via seaborn
@@ -265,6 +266,8 @@ ptyprocess==0.7.0
     # via terminado
 pure-eval==0.2.2
     # via stack-data
+pyarrow==15.0.0
+    # via hails
 pycparser==2.21
     # via cffi
 pygments==2.17.2
