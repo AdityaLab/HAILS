@@ -28,8 +28,8 @@ class FFN(nn.Module):
         :param out_dim: Output dimensions
         :param activation: nn Module for activation
         :param Dropout: rate of dropout
-        ```math
-        e=mc^2
+        ```python
+        print("hello")
         ```
         """
         super(FFN, self).__init__()
@@ -99,7 +99,6 @@ class LatentEncoder(nn.Module):
         return out, mean, logscale, dist
 
 
-
 class GRUEncoder(nn.Module):
     """
     Encodes Sequences using GRU
@@ -122,6 +121,7 @@ class GRUEncoder(nn.Module):
         """
         out_seq, _ = self.gru(batch)
         return out_seq[:, -1, :]
+
 
 class Corem(nn.Module):
     def __init__(self, nodes: int, c: float = 5.0) -> None:

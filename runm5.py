@@ -6,18 +6,19 @@ from hails.utils import device
 from torch.optim import Adam
 from torch.utils.data import Dataset
 from tqdm import tqdm
+from ts_utils.utils import set_seed
 
 
 def float_tensor(x):
     return th.tensor(x, dtype=th.float32, device=device)
 
+
 def long_tensor(x):
     return th.tensor(x, dtype=th.int64, device=device)
 
+
 SEED = 42
-np.random.seed(SEED)
-th.manual_seed(SEED)
-th.cuda.manual_seed(SEED)
+set_seed(SEED)
 BATCH_SIZE = 32
 TRAIN_EPOCHS = 100
 LAMBDA = 0.1
@@ -33,21 +34,24 @@ train_data = pd.concat([sales_train_validation, sales_train_evaluation])
 test_data = pd.concat([sales_test_validation, sales_test_evaluation])
 train_data.head()
 
+
 def jsd_norm(mu1, mu2, var1, var2):
     mu_diff = mu1 - mu2
-    t1 = 0.5 * (mu_diff ** 2 + (var1) ** 2) / (2 * (var2) ** 2)
-    t2 = 0.5 * (mu_diff ** 2 + (var2) ** 2) / (2 * (var1) ** 2)
+    t1 = 0.5 * (mu_diff**2 + (var1) ** 2) / (2 * (var2) ** 2)
+    t2 = 0.5 * (mu_diff**2 + (var2) ** 2) / (2 * (var1) ** 2)
     return t1 + t2 - 1.0
+
 
 def jsd_loss(mu, logstd, hmatrix, train_means, train_std):
     lhs_mu = (((mu * train_std + train_means) * hmatrix).sum(1) - train_means) / (
         train_std
     )
-    lhs_var = (((th.exp(2.0 * logstd) * (train_std ** 2)) * hmatrix).sum(1)) / (
-        train_std ** 2
+    lhs_var = (((th.exp(2.0 * logstd) * (train_std**2)) * hmatrix).sum(1)) / (
+        train_std**2
     )
     ans = th.nan_to_num(jsd_norm(mu, lhs_mu, (2.0 * logstd).exp(), lhs_var))
     return ans.mean()
+
 
 def generate_hmatrix():
     ans = np.zeros((len(data_obj.idx_dict), len(data_obj.idx_dict)))
@@ -58,12 +62,14 @@ def generate_hmatrix():
         ans[n.idx, c_idx] = 1.0
     return float_tensor(ans)
 
+
 cat_encode = {"HOBBIES": 1, "HOUSEHOLD": 2, "FOODS": 3}
 state_encode = {"CA": 1, "TX": 2, "WI": 3}
 train_data["cat_id"] = train_data["cat_id"].map(cat_encode)
 train_data["state_id"] = train_data["state_id"].map(state_encode)
 
 num_nodes = train_data.shape[1]
+
 
 class SeqDataset(Dataset):
     def __init__(self, dataset):
@@ -75,10 +81,12 @@ class SeqDataset(Dataset):
     def __getitem__(self, idx):
         return self.X[idx], self.Y[idx]
 
+
 rnn_predict = [GRUEncoder(1, 1, True).to(device) for _ in range(num_nodes)]
 corem = Corem(num_nodes).to(device)
 
 opt = Adam(list(rnn_predict.parameters()) + list(corem.parameters()), lr=1e-3)
+
 
 def train_epoch():
     encoder = [encoder.train() for encoder in rnn_predict]
@@ -131,6 +139,7 @@ def train_epoch():
     if i % BATCH_SIZE != 0:
         opt.step()
     return np.mean(losses), np.array(means), np.array(stds)
+
 
 print("Training....")
 for ep in tqdm(range(TRAIN_EPOCHS)):

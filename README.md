@@ -16,5 +16,3 @@
 3. Run `rye sync` to download the required dependencies
 
 4. Finally run `rye run python runm5.py`
-
-
