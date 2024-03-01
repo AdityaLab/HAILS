@@ -2,7 +2,7 @@ import torch
 from torch.distributions import Normal, Poisson
 
 
-def jsd_normal(dist1: Normal, dist2: Normal):
+def jsd_normal(dist1: Normal, dist2: Normal) -> torch.Tensor:
     r"""
     Jensen-Shannon Divergence between two normal distributions
 
@@ -23,7 +23,7 @@ def jsd_normal(dist1: Normal, dist2: Normal):
     return loss  # [batch, latent_dim]
 
 
-def jsd_poisson(dist1: Poisson, dist2: Poisson):
+def jsd_poisson(dist1: Poisson, dist2: Poisson) -> torch.Tensor:
     r"""
     Jensen-Shannon Divergence between two poisson distributions
 
