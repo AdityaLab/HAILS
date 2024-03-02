@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Type
 
 import torch
 from torch import nn
@@ -15,7 +15,7 @@ class HAILS_Univ(nn.Module):
         num_nodes,
         seq_len,
         pred_len,
-        pred_model: NLinear | DLinear,
+        pred_model: Type[NLinear] | Type[DLinear],
         corem_c: int = 5,
     ) -> None:
         super(HAILS_Univ, self).__init__()
@@ -36,8 +36,8 @@ class HAILS_Univ(nn.Module):
         Returns:
             torch.Tensor: Base model predictions of shape [Batch, Pred length, Num Nodes]
         """
-        x = self.pred_model(x)  # [Batch, Pred length, Num Nodes*2]
-        mu, logstd = x.split(self.num_nodes, dim=-1)
+        x = self.pred_model(x)  # [Batch, Pred length*2, Num Nodes]
+        mu, logstd = x.split(self.pred_len, dim=-2)
         return mu, logstd
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -61,21 +61,20 @@ class HAILS_Univ(nn.Module):
         return mu_1, variance_2
 
     def _dch_normal_loss(
-        self, mu: torch.Tensor, logstd: torch.Tensor, hmatrix: torch.Tensor
+        self, mu: torch.Tensor, variance: torch.Tensor, hmatrix: torch.Tensor
     ) -> torch.Tensor:
         """Compute Distributional Coherency Loss
 
         Args:
             mu (torch.Tensor): Mean of the prediction [Batch, Time, Num Nodes]
-            logstd (torch.Tensor): Log standard deviation of the prediction [Batch, Time, Num Nodes]
+            variance (torch.Tensor): Variance of the prediction [Batch, Time, Num Nodes]
             hmatrix (torch.Tensor): HMatrix for the hierarchy [Num Nodes, Num Nodes]
 
         Returns:
             torch.Tensor: Loss [Batch, Time, Num Nodes]
         """
-        variance = torch.exp(logstd) ** 2
         mu_1, variance_2 = self._get_agg_params(mu, variance, hmatrix)
-        norm1 = Normal(mu, torch.exp(logstd))
+        norm1 = Normal(mu, torch.sqrt(variance))
         norm2 = Normal(mu_1, torch.sqrt(variance_2))
         loss = jsd_normal(norm1, norm2)
         return loss
@@ -92,8 +91,38 @@ class HAILS_Univ(nn.Module):
         Returns:
             torch.Tensor: Loss [Batch, Time, Num Nodes]
         """
+        # NOTE: rate has to be positive
         rate_1, _ = self._get_agg_params(rate, rate, hmatrix)
         poiss1 = Poisson(rate)
         poiss2 = Poisson(rate_1)
         loss = jsd_poisson(poiss1, poiss2)
+        return loss
+
+    def get_jsd_loss(
+        self,
+        mu: torch.Tensor,
+        logstd: torch.Tensor,
+        hmatrix: torch.Tensor,
+        dist_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        """Get Distributional Coherency Loss
+
+        Args:
+            mu (torch.Tensor): Mean of the prediction [Batch, Time, Num Nodes]
+            logstd (torch.Tensor): Log standard deviation of the prediction [Batch, Time, Num Nodes]
+            hmatrix (torch.Tensor): HMatrix for the hierarchy [Num Nodes, Num Nodes]
+            dist_mask (torch.Tensor): Mask for the distribution type [Num Nodes] 0: Normal, 1: Poisson
+
+        Returns:
+            torch.Tensor: Loss [Batch, Time, Num Nodes]
+        """
+        mu_actual = mu * (1 - dist_mask) + torch.exp(mu) * dist_mask
+        variance_actual = (logstd * 2).exp() * (1 - dist_mask) + torch.exp(
+            mu
+        ) * dist_mask
+
+        loss_normal = self._dch_normal_loss(mu_actual, variance_actual, hmatrix)
+        loss_poisson = self._dch_poisson_loss(torch.exp(mu), hmatrix)
+
+        loss = loss_normal * (1 - dist_mask) + loss_poisson * dist_mask
         return loss
