@@ -31,7 +31,7 @@ def get_dataset(sales_df: pd.DataFrame):
             : matrix.shape[0], matrix.shape[0] : matrix.shape[0] + matrix.shape[1]
         ] = matrix
         hmatrix = hmatrix_new
-    return time_series, hmatrix_new
+    return time_series, hmatrix
 
 
 def get_aggregate(df: pd.DataFrame, agg_over: str):
