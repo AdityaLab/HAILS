@@ -126,3 +126,27 @@ class HAILS_Univ(nn.Module):
 
         loss = loss_normal * (1 - dist_mask) + loss_poisson * dist_mask
         return loss
+
+    def get_ll_loss(
+        self,
+        mu: torch.Tensor,
+        logstd: torch.Tensor,
+        y: torch.Tensor,
+        dist_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        """Get Log Likelihood Loss
+
+        Args:
+            mu (torch.Tensor): Mean of the prediction [Batch, Time, Num Nodes]
+            logstd (torch.Tensor): Log standard deviation of the prediction [Batch, Time, Num Nodes]
+            y (torch.Tensor): Target [Batch, Time, Num Nodes]
+            dist_mask (torch.Tensor): Mask for the distribution type [Num Nodes] 0: Normal, 1: Poisson
+
+        Returns:
+            torch.Tensor: Loss [Batch, Time, Num Nodes]
+        """
+        norm = Normal(mu, torch.exp(logstd))
+        poiss = Poisson(torch.exp(mu))
+        y_int = y.int()
+        loss = -norm.log_prob(y) * (1 - dist_mask) - poiss.log_prob(y_int) * dist_mask
+        return loss
