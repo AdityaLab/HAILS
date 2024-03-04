@@ -5,8 +5,6 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal
 
-from .utils import device
-
 
 class FFN(nn.Module):
     """
@@ -28,8 +26,8 @@ class FFN(nn.Module):
         :param out_dim: Output dimensions
         :param activation: nn Module for activation
         :param Dropout: rate of dropout
-        ```math
-        e=mc^2
+        ```python
+        print("hello")
         ```
         """
         super(FFN, self).__init__()
@@ -99,7 +97,6 @@ class LatentEncoder(nn.Module):
         return out, mean, logscale, dist
 
 
-
 class GRUEncoder(nn.Module):
     """
     Encodes Sequences using GRU
@@ -123,40 +120,48 @@ class GRUEncoder(nn.Module):
         out_seq, _ = self.gru(batch)
         return out_seq[:, -1, :]
 
+
 class Corem(nn.Module):
     def __init__(self, nodes: int, c: float = 5.0) -> None:
         super(Corem, self).__init__()
         self.nodes = nodes
         self.c = c
-        self.w_hat = nn.Parameter(
-            torch.randn(self.nodes).to(device) / math.sqrt(self.nodes) + c
-        )
+        self.w_hat = nn.Parameter(torch.randn(self.nodes) / math.sqrt(self.nodes) + c)
         self.w = nn.Linear(self.nodes, self.nodes)
-        self.b = nn.Parameter(
-            torch.randn(self.nodes).to(device) / math.sqrt(self.nodes) + c
-        )
+        self.b = nn.Parameter(torch.randn(self.nodes) / math.sqrt(self.nodes) + c)
         self.v1 = nn.Linear(self.nodes, self.nodes)
         self.v2 = nn.Linear(self.nodes, self.nodes)
 
-    def forward(self, mu, logstd, y):
-        gamma = torch.sigmoid(self.w_hat)
-        mu_final = gamma * mu + (1 - gamma) * self.w(mu)
-        logstd_final = torch.sigmoid(self.b) * logstd + (
-            1.0 - torch.sigmoid(self.b)
-        ) * (self.v1(mu) + self.v2(logstd))
-        py = Normal(mu_final[:, None], logstd_final[:, None])
-        log_pyM = torch.sum(py.log_prob(y))
-        return mu_final[:, None], logstd_final[:, None], log_pyM, py
+    def forward(self, mu: torch.Tensor, logstd: torch.Tensor, y: torch.Tensor):
+        """
+        Args:
+        mu: torch.Tensor of shape [batch, nodes]
+        logstd: torch.Tensor of shape [batch, nodes]
+        y: torch.Tensor of shape [batch, nodes]
 
-    def predict(self, mu, logstd, sample=True):
+        Returns:
+        mu_final: torch.Tensor of shape [batch, nodes]
+        logstd_final: torch.Tensor of shape [batch, nodes]
+        log_pyM: torch.Tensor of shape
+        """
+        gamma = torch.sigmoid(self.w_hat)  # [nodes]
+        mu_final: torch.Tensor = gamma * mu + (1 - gamma) * self.w(mu)  # [batch, nodes]
+        logstd_final: torch.Tensor = torch.sigmoid(self.b) * logstd + (
+            1.0 - torch.sigmoid(self.b)
+        ) * (self.v1(mu) + self.v2(logstd))  # [batch, nodes]
+        py = Normal(mu_final, logstd_final)
+        log_pyM = torch.sum(py.log_prob(y))  # [batch]
+        return mu_final, logstd_final, log_pyM, py
+
+    def predict(self, mu: torch.Tensor, logstd: torch.Tensor, sample=True):
         gamma = torch.sigmoid(self.w_hat)
-        mu_final = gamma * mu + (1 - gamma) * self.w(mu)
-        logstd_final = torch.sigmoid(self.b) * logstd + (
+        mu_final: torch.Tensor = gamma * mu + (1 - gamma) * self.w(mu)
+        logstd_final: torch.Tensor = torch.sigmoid(self.b) * logstd + (
             1.0 - torch.sigmoid(self.b)
         ) * (self.v1(mu) + self.v2(logstd))
-        py = Normal(mu_final[:, None], logstd_final[:, None])
+        py = Normal(mu_final, logstd_final.exp())
         if sample:
             y_new_i = py.sample()
         else:
-            y_new_i = mu_final[:, None]
-        return y_new_i, mu_final[:, None], logstd_final[:, None], py
+            y_new_i = mu_final
+        return y_new_i, mu_final, logstd_final, py

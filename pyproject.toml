@@ -38,5 +38,8 @@ dev-dependencies = [
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.hatch.build]
+exclude = ["dataset/M5/Dataset/*", "dataset/M5/M5Dataset.zip"]
+
 [tool.hatch.build.targets.wheel]
-packages = ["src/hails"]
+packages = ["src/hails", "src/ts_utils"]
