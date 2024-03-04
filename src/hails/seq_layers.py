@@ -1,4 +1,6 @@
 # Code adapted from: https://github.com/cure-lab/LTSF-Linear
+import math
+
 import torch
 import torch.nn as nn
 
@@ -63,20 +65,20 @@ class DLinear(nn.Module):
         self.channels = enc_in
 
         if self.individual:
-            self.Linear_Seasonal = nn.ModuleList()
-            self.Linear_Trend = nn.ModuleList()
+            fan_in = self.seq_len
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            self.Linear_Seasonal = nn.Parameter(
+                torch.randn(self.channels, self.seq_len, self.pred_len * self.dim_out)
+                * bound
+            )
+            self.Linear_Trend = nn.Parameter(
+                torch.randn(self.channels, self.seq_len, self.pred_len * self.dim_out)
+                * bound
+            )
 
-            for _ in range(self.channels):
-                self.Linear_Seasonal.append(
-                    nn.Linear(self.seq_len, self.pred_len * self.dim_out)
-                )
-                self.Linear_Trend.append(
-                    nn.Linear(self.seq_len, self.pred_len * self.dim_out)
-                )
-
-                # Use this two lines if you want to visualize the weights
-                # self.Linear_Seasonal[i].weight = nn.Parameter((1/self.seq_len)*torch.ones([self.pred_len,self.seq_len]))
-                # self.Linear_Trend[i].weight = nn.Parameter((1/self.seq_len)*torch.ones([self.pred_len,self.seq_len]))
+        # Use this two lines if you want to visualize the weights
+        # self.Linear_Seasonal[i].weight = nn.Parameter((1/self.seq_len)*torch.ones([self.pred_len,self.seq_len]))
+        # self.Linear_Trend[i].weight = nn.Parameter((1/self.seq_len)*torch.ones([self.pred_len,self.seq_len]))
         else:
             self.Linear_Seasonal = nn.Linear(self.seq_len, self.pred_len * self.dim_out)
             self.Linear_Trend = nn.Linear(self.seq_len, self.pred_len * self.dim_out)
@@ -93,23 +95,10 @@ class DLinear(nn.Module):
             trend_init.permute(0, 2, 1),
         )  # to [Batch, Channel, Input length]
         if self.individual:
-            seasonal_output = torch.zeros(
-                [
-                    seasonal_init.size(0),
-                    seasonal_init.size(1),
-                    self.pred_len * self.dim_out,
-                ],
-                dtype=seasonal_init.dtype,
-            ).to(seasonal_init.device)
-            trend_output = torch.zeros(
-                [trend_init.size(0), trend_init.size(1), self.pred_len * self.dim_out],
-                dtype=trend_init.dtype,
-            ).to(trend_init.device)
-            for i in range(self.channels):
-                seasonal_output[:, i, :] = self.Linear_Seasonal[i](
-                    seasonal_init[:, i, :]
-                )
-                trend_output[:, i, :] = self.Linear_Trend[i](trend_init[:, i, :])
+            seasonal_output = torch.einsum(
+                "bcl,clp->bcp", seasonal_init, self.Linear_Seasonal
+            )
+            trend_output = torch.einsum("bcl,clp->bcp", trend_init, self.Linear_Trend)
         else:
             seasonal_output = self.Linear_Seasonal(seasonal_init)
             trend_output = self.Linear_Trend(trend_init)
@@ -138,15 +127,27 @@ class NLinear(nn.Module):
         self.individual = individual
         self.channels = enc_in
         if self.individual:
-            self.Linear = nn.ModuleList()
-            for _ in range(self.channels):
-                self.Linear.append(
-                    nn.Linear(self.seq_len, self.pred_len * self.dim_out)
-                )
+            fan_in = self.seq_len
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            self.Linear = nn.Parameter(
+                torch.randn(self.channels, self.seq_len, self.pred_len * self.dim_out)
+                * bound
+            )
         else:
             self.Linear = nn.Linear(self.seq_len, self.pred_len * self.dim_out)
 
     def forward(self, x: torch.Tensor):
+        # x: [Batch, Input length, Channel]
+        seq_last = x[:, -1:, :].detach()
+        x = x - seq_last
+        if self.individual:
+            x = torch.einsum("blc,clp->bpc", x, self.Linear)
+        else:
+            x = self.Linear(x.permute(0, 2, 1)).permute(0, 2, 1)
+        x = x + seq_last
+        return x  # [Batch, Output length, Channel]
+
+    def forward_for(self, x: torch.Tensor):
         # x: [Batch, Input length, Channel]
         seq_last = x[:, -1:, :].detach()
         x = x - seq_last

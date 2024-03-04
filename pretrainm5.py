@@ -15,7 +15,7 @@ USE_DISPERSION = False
 MODEL_TYPE = "DLinear"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 LR = 1e-3
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 PRE_TRAIN_EPOCHS = 100
 
 set_seed(SEED)
@@ -41,6 +41,8 @@ train_dataset_obj = HierarchicalTimeSeriesDataset(
 test_dataset_obj = HierarchicalTimeSeriesDataset(
     text_dataset, PRED_LEN, SEQ_LEN, None, text_hmatrix
 )
+
+print(f"{len(train_dataset_obj.time_series_dataset)= }")
 
 train_loader = DataLoader(
     train_dataset_obj.time_series_dataset,
@@ -91,3 +93,4 @@ print("Pre-training...")
 for ep in range(PRE_TRAIN_EPOCHS):
     loss = pre_train_step()
     print(f"Epoch {ep+1}/{PRE_TRAIN_EPOCHS}, Loss: {loss:.4f}")
+print("Pre-training done!")
