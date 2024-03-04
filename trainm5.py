@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from ts_utils.datasets import HierarchicalTimeSeriesDataset
 from ts_utils.m5_dataset import get_dataset, get_datasets
 from ts_utils.utils import prob_poisson, prob_poisson_dispersion, set_seed
+from tqdm import tqdm
 
 SEED = 42
 PRED_LEN = 28
@@ -19,9 +20,9 @@ PRETRAIN_LR = 1e-3
 BATCH_SIZE = 16
 PRE_TRAIN_EPOCHS = 1
 TRAIN_LR = 1e-3
-LAMBDA = 0.1
+LAMBDA = 0.5
 TRAIN_EPOCHS = 100
-SCALE_PREC = True
+SCALE_PREC = False
 
 set_seed(SEED)
 train_dataset, text_dataset, _, _ = get_datasets()
@@ -91,7 +92,7 @@ print("Pre-trained model loaded!")
 def train_step():
     hails.train()
     losses = [[], [], []]
-    for x, y in train_loader:
+    for x, y in tqdm(train_loader):
         x = x.to(DEVICE)
         y = y.to(DEVICE)
         optimizer.zero_grad()
