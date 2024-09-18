@@ -2,23 +2,20 @@
 name = "hails"
 version = "0.1.0"
 description = "Add your description here"
-authors = [
-    { name = "kage08", email = "harshavardhan864.hk@gmail.com" }
-]
-dependencies = [
-    "torch>=2.2.1",
-    "tqdm>=4.66.2",
-    "seaborn>=0.13.2",
-    "jupyter>=1.0.0",
-    "scikit-learn>=1.4.1.post1",
-    "properscoring>=0.1",
-    "numpy>=1.26.4",
-    "matplotlib>=3.8.3",
-    "pandas>=2.2.0",
-    "pyarrow>=15.0.0",
-]
 readme = "README.md"
-requires-python = ">= 3.8"
+requires-python = ">=3.12"
+dependencies = [
+    "jupyter>=1.1.1",
+    "matplotlib>=3.9.2",
+    "numpy>=2.1.1",
+    "pandas>=2.2.2",
+    "properscoring>=0.1",
+    "pyarrow>=17.0.0",
+    "scikit-learn>=1.5.2",
+    "seaborn>=0.13.2",
+    "torch>=2.4.1",
+    "tqdm>=4.66.5",
+]
 
 [project.scripts]
 hello = "hails:hello"
@@ -27,16 +24,11 @@ hello = "hails:hello"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.rye]
-managed = true
+[tool.uv]
 dev-dependencies = [
-    "black>=24.2.0",
-    "ruff>=0.2.2",
-    "ipython>=8.22.1",
+    "ipython>=8.27.0",
+    "ruff>=0.6.5",
 ]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.hatch.build]
 exclude = ["dataset/M5/Dataset/*", "dataset/M5/M5Dataset.zip"]
