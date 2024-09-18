@@ -1,13 +1,14 @@
 import torch
-from hails.hails import HAILS_Univ
-from hails.seq_layers import DLinear, NLinear
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from hails.hails import HAILS_Univ
+from hails.seq_layers import DLinear, NLinear
 from ts_utils.datasets import HierarchicalTimeSeriesDataset
 from ts_utils.m5_dataset import get_dataset, get_datasets
 from ts_utils.utils import prob_poisson, prob_poisson_dispersion, set_seed
-from tqdm import tqdm
 
 SEED = 42
 PRED_LEN = 28
@@ -79,7 +80,7 @@ print(hails)
 
 # Pre-train
 optimizer = AdamW(hails.parameters(), lr=PRETRAIN_LR)
-scaler = GradScaler()
+scaler = GradScaler(device=DEVICE)
 
 
 # Load pre-trained model
@@ -97,7 +98,7 @@ def train_step():
         y = y.to(DEVICE)
         optimizer.zero_grad()
         if SCALE_PREC:
-            with autocast():
+            with autocast(device_type=DEVICE):
                 mu, logstd = hails(x)
                 ll_loss = hails.get_ll_loss(mu, logstd, y, dist_mask).mean()
                 dch_loss = hails.get_jsd_loss(
